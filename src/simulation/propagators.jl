@@ -13,7 +13,7 @@ Arguments:
 - `area_drag`: Velocity-facing area affected by drag. [m^2]
 - `coef_drag`: Coefficient of drag [dimensionless]
 - `area_srp`: Velocity-facing area affected by drag. [m^2]
-- `coef_srp`: Coefficient of reflectivity [dimensionless]  
+- `coef_srp`: Coefficient of reflectivity [dimensionless]
 - `n_grav::Integer`: Gravity model degree (Default: 20)
 - `m_grav::Integer`: Gravity model order (Default: 20)
 - `drag::Bool`: Include cannonball atomospheric drag in force model (Default: `true`)
@@ -26,12 +26,12 @@ Returns:
 - `dx::Array{<:Float64, 1}`: Satellite state derivative, velocity and accelerations [m; m/s]
 """
 function fderiv_earth_orbit(epc::Epoch, x::Array{<:Real} ;
-             mass::Real=1.0, area_drag::Real=1.0, coef_drag::Real=2.3, 
-             area_srp::Real=1.0, coef_srp::Real=1.8, 
-             n_grav::Integer=20, m_grav::Integer=20, 
-             drag::Bool=true, srp::Bool=true, moon::Bool=true, sun::Bool=true, 
+             mass::Real=1.0, area_drag::Real=1.0, coef_drag::Real=2.3,
+             area_srp::Real=1.0, coef_srp::Real=1.8,
+             n_grav::Integer=20, m_grav::Integer=20,
+             drag::Bool=true, srp::Bool=true, moon::Bool=true, sun::Bool=true,
              relativity::Bool=true)
-    
+
     # Extract position and velocity
     r = x[1:3]
     v = x[4:6]
@@ -57,7 +57,8 @@ function fderiv_earth_orbit(epc::Epoch, x::Array{<:Real} ;
     # Drag
     if drag
         # Use PN*x[1:3] to compute the satellite position in the true-of-date inertial frame
-        rho = density_nrlmsise00(epc, geod)
+        # rho = density_nrlmsise00(epc, geod)
+        rho = density_harris_priester(x,r_sun)
         a  += accel_drag(x, rho, mass, area_drag, coef_drag, Array{Real, 2}(PN))
     end
 
@@ -98,13 +99,13 @@ if there is no state transition matrix then only the state will be propagated.
 
 Attributes:
 - `rk4::RK4` Internal numerical integrator used for state propagation
-- `dt::Real` Default propagation time step. All steps will be this size unless 
+- `dt::Real` Default propagation time step. All steps will be this size unless
 the state vector is requested to propagate to a time smaller than this step size,
 which it will do.
 - `epc::Epoch` Epoch of state
 - `x::Array{Float64, 1}` State vector. Earth-centered inertial Cartesian state.
 - `phi::Union{Nothing, Array{Float64, 2}}` State transition matrix, or the matrix
-of partial derivatives of the state at the current time with respect to the 
+of partial derivatives of the state at the current time with respect to the
 start of propagation.
 
 The following force model parametters can be set as keyword arguments
@@ -114,7 +115,7 @@ Parameters:
 - `area_drag`: Velocity-facing area affected by drag. [m^2]
 - `coef_drag`: Coefficient of drag [dimensionless]
 - `area_srp`: Velocity-facing area affected by drag. [m^2]
-- `coef_srp`: Coefficient of reflectivity [dimensionless]  
+- `coef_srp`: Coefficient of reflectivity [dimensionless]
 - `n_grav::Integer`: Gravity model degree (Default: 20)
 - `m_grav::Integer`: Gravity model order (Default: 20)
 - `drag::Bool`: Include cannonball atomospheric drag in force model (Default: `true`)
@@ -152,7 +153,7 @@ function step!(state::EarthInertialState, dt::Real=0.0)
     end
 
     if state.phi == nothing
-        # If no state transition matrix is provided integrate 
+        # If no state transition matrix is provided integrate
         # without propagating variational equations
         state.x = istep(state.rk4, state.epc, dt, state.x)
     else
@@ -165,8 +166,8 @@ end
 
 export stepto!
 """
-Step dynamics state to the specified time. Will take as many internal steps as 
-required to advance the propagator to the correct time. No internal step will 
+Step dynamics state to the specified time. Will take as many internal steps as
+required to advance the propagator to the correct time. No internal step will
 exceed the size specified in the state propagator.
 
 Arguments:
@@ -182,7 +183,7 @@ function stepto!(state::EarthInertialState, time::Union{Real, Epoch}=0.0)
     if time < state.epc
         @warn "Propagation time is before current state epoch. Will integrate dyanmics in reverse."
     end
-    
+
     # Propagate state
     while state.epc < time
         # Set propagation state size
@@ -196,7 +197,7 @@ end
 export sim!
 """
 Simulate the sttate dynamics to the specified time. Takes same inputs as `stepto!`
-but instead of just updating the state vector to the specified time, this 
+but instead of just updating the state vector to the specified time, this
 function also returns the timesteps, state values, and state transition
 matrices for each time step.
 
@@ -206,8 +207,8 @@ Arguments:
 a real number to advance the state by or the Epoch
 
 Returns:
-- `t::Array{Float64, 1}` Elapsed time as a scalar from the initial simulation epoch 
-- `epc::Array{Epoch, 1}` Epoch at each timestep 
+- `t::Array{Float64, 1}` Elapsed time as a scalar from the initial simulation epoch
+- `epc::Array{Epoch, 1}` Epoch at each timestep
 - `x::Array{Float64, 2}` State vectors at each time step. Time is along second axis
 - `Phi::Array{Float64, 2}` Stacked array of state transition matrices
 """
@@ -269,7 +270,7 @@ function sim!(state::EarthInertialState, time::Union{Real, Epoch}=0.0)
         return t, epc, x, A
     end
 
-    # Default return without STM 
+    # Default return without STM
     return t, epc, x
 end
 
